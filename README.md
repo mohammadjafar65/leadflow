@@ -2,6 +2,8 @@
 
 Repository: https://github.com/mohammadjafar65/leadflow
 
+Initial setup: source and prebuilt hosting branches were uploaded on 26 September 2026. GitHub Actions currently reports an account billing lock, so the initial hosting build was produced and checked locally. Automatic builds require resolving that account issue; cPanel can still pull and deploy a manually published hosting release.
+
 `main` contains source. After CI succeeds for a push to main, **Prepare Namecheap release** builds both applications with Node 22 and publishes the prebuilt `hosting` branch. That branch contains `web/`, `server/`, `.cpanel.yml`, and the deployment script; no credentials or node_modules. A downloadable release is also attached to the Actions run.
 
 ## Connect cPanel once

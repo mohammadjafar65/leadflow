@@ -20,7 +20,11 @@ for target in "$APP_ROOT" "$WEB_ROOT"; do
 done
 [[ "$APP_ROOT" != "$WEB_ROOT" && "$APP_ROOT" != "$WEB_ROOT/"* && "$WEB_ROOT" != "$APP_ROOT/"* ]] || { echo 'API and web folders must be separate'; exit 1; }
 [[ -f "$APP_ROOT/.env" && -f "$RELEASE_ROOT/server/dist/src/index.js" && -f "$RELEASE_ROOT/web/index.html" ]] || { echo 'Missing production .env or release build'; exit 1; }
+# CloudLinux's activation script reads optional unset variables (CL_VIRTUAL_ENV).
+# Keep fail-fast command handling, but allow its normal unset-variable behavior.
+set +u
 source "$NODE_ACTIVATE"
+set -u
 BACKUP="$HOME/.leadflow-deploy-backups/$(date -u +%Y%m%dT%H%M%SZ)-$$"
 mkdir -p "$BACKUP"
 tar --exclude='./node_modules' --exclude='./data' --exclude='./.git' -czf "$BACKUP/server.tgz" -C "$APP_ROOT" .
