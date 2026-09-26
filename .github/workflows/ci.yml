@@ -1,0 +1,50 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  build-test-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test -- --run
+      - run: npm run build
+
+  server-check:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: leadflow
+          POSTGRES_PASSWORD: leadflow
+          POSTGRES_DB: leadflow
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U leadflow"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://leadflow:leadflow@localhost:5433/leadflow
+      TEST_DATABASE_URL: postgres://leadflow:leadflow@localhost:5433/leadflow_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm", cache-dependency-path: server/package-lock.json }
+      - run: npm ci --prefix server
+      - run: npm run typecheck --prefix server
+      - run: npm run build --prefix server
+      - run: npm run test:unit --prefix server
+      - run: npm run migrate --prefix server
+      - run: npm test --prefix server
+  # deploy job intentionally left as a stub for the target platform
+  # (Fly.io / Render / ECS) — wire up secrets before enabling.

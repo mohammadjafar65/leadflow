@@ -1,0 +1,6 @@
+# Local-machine override: the host already runs Postgres on 5432 (foreign
+# instance), so LeadFlow's Postgres container maps to 5433 here.
+# Delete/rename this file on machines where 5432 is free.
+services:
+  postgres:
+    ports: ["5433:5432"]

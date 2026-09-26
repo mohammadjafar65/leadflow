@@ -1,0 +1,64 @@
+name: Prepare Namecheap release
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: write
+concurrency:
+  group: namecheap-release
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - run: npm ci && npm ci --prefix server
+      - run: npm run build && npm run build --prefix server
+        env:
+          VITE_API_BASE_URL: https://api-leads.mzistudio.com/api/v1
+          VITE_WS_URL: wss://api-leads.mzistudio.com
+      - run: node scripts/prepare-cpanel-release.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: leadflow-namecheap
+          path: .release/
+          include-hidden-files: true
+      - name: Publish prebuilt hosting branch
+        env:
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          if [ "$(git rev-parse origin/main)" != "$SOURCE_SHA" ]; then
+            echo 'A newer source commit exists; skipping stale release.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git ls-remote --exit-code --heads origin hosting >/dev/null; then
+            git fetch origin hosting
+            git worktree add .hosting FETCH_HEAD
+          else
+            git worktree add --detach .hosting
+            (cd .hosting && git checkout --orphan hosting)
+          fi
+          cd .hosting
+          git rm -rf --ignore-unmatch .
+          cp -a ../.release/. .
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "Build Namecheap release from $SOURCE_SHA"
+          git push origin HEAD:hosting

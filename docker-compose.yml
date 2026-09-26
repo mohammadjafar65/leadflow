@@ -1,0 +1,36 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: leadflow
+      POSTGRES_PASSWORD: leadflow
+      POSTGRES_DB: leadflow
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  api:
+    build: { context: ., dockerfile: Dockerfile.api }
+    env_file: .env
+    depends_on: [postgres, redis]
+    ports: ["4000:4000"]
+
+  worker:
+    build: { context: ., dockerfile: Dockerfile.worker }
+    env_file: .env
+    depends_on: [postgres, redis]
+    deploy:
+      replicas: 2   # scrape/enrich/send/sequence-tick workers
+
+  web:
+    build: { context: ., dockerfile: Dockerfile.web }
+    env_file: .env
+    ports: ["5173:5173"]
+    depends_on: [api]
+
+volumes:
+  pgdata:
